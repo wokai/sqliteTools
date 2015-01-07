@@ -1,0 +1,6 @@
+PKG_LIBS=-lsqlite3 -lws2_32
+CXX_STD = CXX11
+PKG_OBJECTS = sqliteTools.o 
+all: $(SHLIB)
+clean: 
+	rm -f $(OBJECTS)

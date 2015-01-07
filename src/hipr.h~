@@ -1,0 +1,35 @@
+/*
+ * hipr.h
+ *
+ *  Created on: 04.12.2014
+ *      Author: kaisers
+ */
+
+#ifndef HIPR_H_
+#define HIPR_H_
+
+#include <sqlite3.h>
+#include "sqlite_con.h"
+#include "sqlite_stmt.h"
+using namespace sqlite;
+#include <iostream>
+#include <fstream>
+#include <sstream>
+using namespace std;
+
+#include <cstdlib>
+
+#include <R.h>
+#include <Rinternals.h>
+#include <Rdefines.h>
+#include <R_ext/PrtUtil.h>
+#include <R_ext/Rdynload.h> // DllInfo
+
+
+extern "C" {
+SEXP rep_tbl(SEXP pParams);
+}
+
+
+
+#endif /* HIPR_H_ */

@@ -1,0 +1,10 @@
+useDynLib(sqliteTools)
+import(methods)
+importFrom(RSQLite, dbConnect, dbDisconnect,  dbWriteTable,
+	dbReadTable, dbExistsTable, dbListTables, dbGetQuery, SQLite,
+	dbRemoveTable, dbDataType)
+export(
+	convertToNum,
+	expandTable,
+	wocheIndex
+)

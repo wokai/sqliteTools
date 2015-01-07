@@ -1,0 +1,147 @@
+/*
+ * hipr.cpp
+ *
+ *  Created on: 04.12.2014
+ *      Author: kaisers
+ */
+
+#include "hipr.h"
+
+extern "C"{
+
+int rep_callback(void *ptr, int nrows, char **column_value, char **column_name)
+{
+	sqlite_stmt * stmt = (sqlite_stmt* ) ptr;
+	int id = 0, woche_index = 0, min_woche = 0, max_woche = 0, woche = 0, n_woche, wd;
+	double quant = 0;
+
+	//"SELECT id, vers_id, quant, woche_index, min_woche, max_woche FROM"
+	if(column_value[0])	id = atoi(column_value[0]);
+	// 1 = vers_id = char*
+	if(column_value[2])	quant = strtod(column_value[1], NULL);
+	if(column_value[3]) woche_index = atoi(column_value[2]);
+	if(column_value[4]) min_woche = atoi(column_value[3]);
+	if(column_value[5]) max_woche = atoi(column_value[4]);
+
+	n_woche = max_woche - min_woche + 1;
+	quant /= n_woche;
+
+	//  (id, rid, vers_id, woche, quant) VALUES (?, ?, ?, ?, ?)
+	// fix values
+	stmt->bind_int(2, id);
+	stmt->bind_text(3, string(column_value[1]));	// vers_id
+	stmt->bind_double(5, quant);
+
+	for(woche = min_woche; woche <= max_woche; ++woche)
+	{
+		wd = woche - woche_index;
+		if(wd >= (-13) && wd <= 13)
+		{
+			stmt->bind_int(1, stmt->getAutoId());
+			stmt->bind_int(4, wd);
+			if(!stmt->step())
+				error("[rep_tbl.rep_callback] Step error!");
+		}
+	}
+	return 0;
+}
+
+SEXP rep_tbl(SEXP pParams)
+{
+	if(TYPEOF(pParams) != STRSXP)
+		error("pParams must be character!");
+
+	if(length(pParams) != 4)
+		error("pParams must have length 4!");
+
+	// params:
+	// [0] database name
+	// [1] read table name
+	// [2] write table name
+	// [3] logfile name
+
+	string db_file = string(CHAR(STRING_ELT(pParams, 0)));
+	string read_table = string(CHAR(STRING_ELT(pParams, 1)));
+	string write_table = string(CHAR(STRING_ELT(pParams, 2)));
+	string logfile = string(CHAR(STRING_ELT(pParams, 3)));
+
+	const char * delim = ", ";
+	ofstream fout(logfile);
+
+	Rprintf("[rep_tbl] Opening Database\n");
+	sqlite_con con(db_file, fout);
+	if(!con.open())
+		error("[rep_tbl] Could not open sqlite db '", db_file.c_str() , "'.\n");
+
+	if(!con.set_sync(sqlite_con::SYNC_OFF))
+	{
+		con.close();
+		error("[rep_tbl] Cannot set database to asynchronous state!");
+	}
+
+
+	if(con.drop_table(write_table))
+		Rprintf("[rep_tbl] Drop table success.\n");
+	else
+	{
+		con.close();
+		error("Drop table error!");
+	}
+
+
+	stringstream sql;
+	sql << "CREATE TABLE IF NOT EXISTS "	<< write_table << " (";
+	sql << "id INTEGER "					<< delim;
+	sql << "rid INTEGER"					<< delim;
+	sql << "vers_id"						<< delim;
+	sql << "woche INTEGER"					<< delim;
+	sql << "quant REAL"						<< delim;
+	sql << "PRIMARY KEY(id));";
+
+	if(con.create_table(sql.str()))
+		Rprintf("[rep_tbl] Create table success.\n");
+	else
+	{
+		con.close();
+		error("[rep_tbl] Create table error!");
+	}
+
+
+	sqlite_stmt stmt(con);
+
+	sql.str("");
+	sql.clear();
+	sql << "INSERT INTO " << write_table << " (id, rid, vers_id, woche, quant) VALUES (?, ?, ?, ?, ?)";
+	if(!stmt.prepare(sql.str()))
+	{
+		con.close();
+		error("[rep_tbl Prepare statment error!");
+	}
+
+	// Begin transaction
+	con.begin();
+
+	sql.str("");
+	sql.clear();
+	sql << "SELECT id, quant, woche_index, min_woche, max_woche FROM " << read_table << ";";
+	con.exec_callback(sql.str(), rep_callback, &stmt);
+
+	// Commit transaction
+	con.commit();
+
+
+	Rprintf("[rep_tbl] Closing database.\n");
+
+	// Resets sync and journalling mode
+	if(con.close())
+		Rprintf("[rep_tbl] Finished.\n");
+	else
+		error("Database closing error!");
+
+	return R_NilValue;
+}
+
+
+
+
+} // extern "C"

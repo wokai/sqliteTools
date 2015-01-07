@@ -1,0 +1,10 @@
+Package: sqliteTools
+Type: Package
+Title: sqliteTools
+Version: 0.2.0
+Date: 2014-12-04
+Author: Wolfgang Kaisers
+Maintainer: Wolfgang Kaisers <kaisers@med.uni-duesseldorf.de>
+Description: Database procedures for hip_frac  project
+License: Artistic-2.0
+Depends: methods, RSQLite
